@@ -17,7 +17,7 @@ window.onload = function () {
   const conten = document.getElementById('conten')
   const send = document.getElementById('send')
   const wantToSay = document.getElementById('wantToSay')
-  let socket, addDB , readAllDB, deleteDB;
+  let socket, addDB , readAllDB, deleteDB
 
   /* 新增 DOM 文字方法 */
   function addElement (text) {
@@ -28,15 +28,12 @@ window.onload = function () {
   }
 
   /* 以下起動一個 WebSocket */
-  function startSocket () {
+  function startSocket (resolve, reject) {
+    // 註: startSocket 此涵式 必定會被 Promise 包覆調用，因此可使用 resolve, reject
     socket = new WebSocket('ws://localhost:3000'); // 創建時自動會連結
     socket.onopen = e => {
       console.log('WebSocket 打開啦!', e)
-      // 每當打開的時候都檢查一次indexedDB 有沒有離線儲存的對話，要重新發送
-
-      // 這件事情要等 Socket & DB 都啟動好了才可以做，所以用 Promise 寫吧
-     
-      socket.send(readAllDB())
+      resolve('WebSocket 打開啦!')
     }
     socket.onclose = e => {
       // 這裡在正是連上線之前會跑到這邊
@@ -53,51 +50,53 @@ window.onload = function () {
       addElement(`狗狗說: ${e.data}`)
     }
   }
-  startSocket()
+  const promise_startSocket = new Promise((resolve, reject) => {
+    startSocket(resolve, reject)
+  })
 
   /* 以下起動一個 indexedDB */
-  function startDB() {
-    const db = window.indexedDB.open('barkdb', 1);
+  function startDB (resolve, reject) {
+    // 註: startDB 此涵式 必定會被 Promise 包覆調用，因此可使用 resolve, reject
+    const db = window.indexedDB.open('barkdb', 1)
 
     db.onerror = e => {
-      console.log('db啟動失敗--');
-    };
+      console.log('db啟動失敗--')
+    }
 
     db.onsuccess = e => {
       console.log('db啟動成功!')
-      console.log( db ) // 包括各種 DB 的方法
-      console.log( db.result ) // DB 實體 (IDBDatabase)
+      resolve('db啟動成功!')
     }
 
     db.onupgradeneeded = e => {
-      console.log('db升級!'); //當啟動的db版本比db實際號還新 
-      
+      console.log('db升級!'); // 當啟動的db版本比db實際號還新 
+
       // 在這裡新建倉庫 "Dialogue" 內放置對話記錄表單
       // 倉庫 > 表格 > 目次
       let objectStore = event.target.result.createObjectStore('dialogue', { autoIncrement: true })
-      //建立表格，第二個參數決定主Key，可自動生成
-      objectStore.createIndex('text', 'text', { unique: false }); //建立表格下面的目次
-      // 參數: 目次名稱 / keyPath / 目次細節參數(這邊設定了不重複)
+      // 建立表格，第二個參數決定主Key，可自動生成
+      objectStore.createIndex('text', 'text', { unique: false }); // 建立表格下面的目次
+    // 參數: 目次名稱 / keyPath / 目次細節參數(這邊設定了不重複)
     }
 
     addDB = function (text) {
       let objectStore = db.result.transaction('dialogue', 'readwrite')
         .objectStore('dialogue')
-        .add({ text: text });
-      
+        .add({ text: text })
+
       objectStore.onsuccess = (e) => {
-        console.log('db寫入成功');
-      };
+        console.log('db寫入成功')
+      }
 
       objectStore.onerror = (e) => {
-        console.log('db寫入失敗');
+        console.log('db寫入失敗')
       }
     }
-    
-    readAllDB = function () {
-      let allDBtextArray = [];
+
+    readAllDB = function (resolve_readAllDB, reject_readAllDB) { // 為了避免與外層 startDB 參數混淆
+      let allDBtextArray = []
       let objectStore = db.result.transaction('dialogue').objectStore('dialogue')
-      
+
       objectStore.openCursor().onsuccess = e => {
         // 取資料一筆一筆是非同步的
         if (e.target.result) {
@@ -106,41 +105,64 @@ window.onload = function () {
           e.target.result.continue()
         } else {
           console.log('沒有更多數據了')
-          console.log(allDBtextArray)// 還是空陣列就被Return 了!!!
+          console.log(allDBtextArray) // 還是空陣列就被Return 了!!!
           allDBtextArray = allDBtextArray.toString()
-          return allDBtextArray
+          resolve_readAllDB(allDBtextArray)
         }
       }
     }
-  };
-  startDB();
+  }
+
+  const promise_startDB = new Promise((resolve, reject) => {
+    startDB(resolve, reject)
+  })
 
   /* 綁定送出按鈕事件&操作 */
   send.onclick = (e) => {
-    e.preventDefault();
-    let wantToSayTex = wantToSay.value;
+    e.preventDefault()
+    let wantToSayTex = wantToSay.value
     if (!!socket == false) {
       // socket掉線...
-      addElement(`你說: ${wantToSayTex} [對方離線中...]`);
+      addElement(`你說: ${wantToSayTex} [對方離線中...]`)
       // 以下操作儲存 indexedDB
-      addDB(wantToSayTex);
-      
+      addDB(wantToSayTex)
     } else {
       if (socket.readyState === 1) {
         socket.send(wantToSayTex)
         addElement(`你說: ${wantToSayTex}`)
       } else {
-        addElement(`你說: ${wantToSayTex} [對方離線中...]`);
-        addDB(wantToSayTex);
+        addElement(`你說: ${wantToSayTex} [對方離線中...]`)
+        addDB(wantToSayTex)
       }
     }
     wantToSay.value = ''
   }
 
+  /* 使用 Promise 等候 DB啟動OK  & Socket連線OK */
+
+  Promise.all([promise_startSocket, promise_startDB])
+    .then((result) => {
+      // 還需 再次等候 DB取得資料OK ,
+      console.log('DB啟動OK && Socket連線OK', result)
+
+      const promise_readAllDB = new Promise((resolve_readAllDB, reject_readAllDB) => {
+        readAllDB(resolve_readAllDB, reject_readAllDB)
+      })
+
+      promise_readAllDB
+        .then((result_readAllDB) => {
+          console.log('Promise(取得DB所有回應) 成功!', result_readAllDB)
+          socket.send(result_readAllDB); // 終於可已送出!!
+        })
+        .catch((error) => {
+          console.log('第二次 Promise(取得DB所有回應) 失敗了', error)
+        })
+    })
+    .catch((error) => {
+      console.log('第一次 Promise 失敗了', error)
+    })
+
   
-
-
-
   /* 取得網路上一張隨機狗狗圖片 */
   function showTheDogInDom (imgurl) {
     const dogPict = document.getElementById('dogPict')
