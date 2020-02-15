@@ -22,7 +22,7 @@ window.onload = function () {
     // 宣告創建時自動會連結 
 
     if ( location.protocol === 'https:' ){
-      socket = new WebSocket('wss://10.101.205.67:3004');  // 註: 由於內網為浮動IP , ssl 加密訪問於 3004 Port
+      socket = new WebSocket('wss://10.101.205.226:3004');  // 註: 由於內網為浮動IP , ssl 加密訪問於 3004 Port
     } else {
       socket = new WebSocket('ws://localhost:3003'); 
     }

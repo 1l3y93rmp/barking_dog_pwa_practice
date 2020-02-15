@@ -25,7 +25,12 @@ const app = new Koa();
 
 app.use(
     serve(
-        path.join(__dirname+'/web')
+        path.join(__dirname+'/web'),
+        {
+          setHeaders (res, path, stats) {
+            res.setHeader('Cache-Control', 'private, max-age=30')
+          },
+        }
     )
 );
 

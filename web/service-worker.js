@@ -28,7 +28,7 @@ self.addEventListener('install', function(event){
 self.addEventListener('activate', function(event){
     console.log('[SW]: 啟用(Activate) Service Worker!',event);
     // 成功啟用後，在此檢查快取清單"名稱"是否有更新
-    event.waitUntil()
+    // event.waitUntil()
 
     return self.clients.claim(); // 強制控制到沒有控制的資源
 });
@@ -42,11 +42,13 @@ self.addEventListener('fetch', function(event){
         caches.match(event.request) // caches.match , 當"所有"快取中有對應到當前的 request 就執行以下 (用Then 非同步的)
             .then(function(response){ // 這個 response 指的是快取撈出來的 response，撈不到會拿到 nul
                 if(response){
-                    return response; // 有撈到就返回 快取撈出來的 response
+                    console.log('我有暫存')
+                    return response; // 任何表 有撈到到就返回 快取撈出來的 response
                 }else{
-                    if (event.request.url === 'http://localhost:3001/js/main.js') {
-                        // 註: main.js 會掉到這邊才被存入 dynamic 動態快取
-                        return fetch(event.request) // 一樣先丟執行
+                    if (event.request.url.indexOf('.js') > 0) {
+                        // 註: 凡只要 .js 會掉到這邊才被存入 dynamic 動態快取
+                        console.log('沒站存 存到 dynamic !!!')
+                        return fetch(event.request) // 先執行去抓取
                             .then(function(res){ // then 接續工作 取得 res (fetch 得到的物件)
                                 caches.open('dynamic_'+ CACHE_VERSION) // 快取 開啟新的 dynamic cache
                                     .then(function(cache){ // 開啟後的才能取得 cache
@@ -57,6 +59,7 @@ self.addEventListener('fetch', function(event){
                             });
                     } else {
                         // 隨機狗狗圖片 & API 則設定不存到任何快取中
+                        console.log('沒站存 以後也不想存!!!')
                         return fetch(event.request)
                     }
 
