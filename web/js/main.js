@@ -4,7 +4,9 @@ window.onload = function () {
   const conten = document.getElementById('conten')
   const send = document.getElementById('send')
   const wantToSay = document.getElementById('wantToSay')
-  let socket, addDB , readAllDB, deleteDBtext
+
+  /* 通用方法 */
+  let socket, addDB, readAllDB, deleteDBtext
 
   /* 新增 DOM 文字方法 */
   function addElement (text) {
@@ -17,7 +19,15 @@ window.onload = function () {
   /* 以下起動一個 WebSocket */
   function startSocket (resolve, reject, isReOpen) {
     // 註: startSocket 此涵式 必定會被 Promise 包覆調用，因此可使用 resolve, reject
-    socket = new WebSocket('ws://localhost:3000'); // 創建時自動會連結
+    // 宣告創建時自動會連結 
+
+    if ( location.protocol === 'https:' ){
+      socket = new WebSocket('wss://10.101.205.67:3004');  // 註: 由於內網為浮動IP , ssl 加密訪問於 3004 Port
+    } else {
+      socket = new WebSocket('ws://localhost:3003'); 
+    }
+    
+
     socket.onopen = e => {
       !isReOpen && resolve('WebSocket 打開啦!')
       isReOpen && promise_readAllDB_send() // 第一次的話被 init 做掉，所以重開的時候才要幫忙做
