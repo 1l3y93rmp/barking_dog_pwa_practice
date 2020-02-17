@@ -4,9 +4,13 @@ window.onload = function () {
   const conten = document.getElementById('conten')
   const send = document.getElementById('send')
   const wantToSay = document.getElementById('wantToSay')
+  const pushButton = document.getElementById('pushButton')
 
-  /* 通用方法 */
-  let socket, addDB, readAllDB, deleteDBtext
+  /* 公鑰 用於當 伺服器推送了資訊*/
+  const applicationServerPublicKey = 'BPkVtb8v7cbHBzzs0ISnxRwm1FyDShujOmycPffzlABoOFjY2-2MeLxmifI_tcNFU_-_L9RJEZimInibS2o7YTg';
+
+  /* 通用方法與 OBJ */
+  let socket, swRegistration, addDB, readAllDB, deleteDBtext, isSubscribed;
 
   /* 新增 DOM 文字方法 */
   function addElement (text) {
@@ -45,6 +49,18 @@ window.onload = function () {
     socket.onmessage = e => {
       // console.log('WebSocket 有訊息傳來了', e)
       addElement(`狗狗說: ${e.data}`)
+
+      if (isSubscribed) {
+        const title = '狗狗回應了你一些訊息:'
+        const options = {
+          body: e.data,
+          icon: 'images/icons-192.png',
+          badge: 'images/icons-192.png'
+        }
+        // showNotification() 可以跳出提示視窗喔
+        swRegistration.showNotification(title, options)
+      }
+
     }
   }
 
@@ -167,24 +183,99 @@ window.onload = function () {
       })
   }
 
-  /* 執行 proxy 代理 */
-  function startProxy () {
-    if ('serviceWorker' in navigator) { // 是否有支援 ?
+  /* 執行 serviceWorker proxy 代理 和 PushManager */
+  function startProxy (resolve, reject) {
+    if ('serviceWorker' in navigator && 'PushManager' in window) { // 是否有支援 serviceWorker proxy 和 PushManager ?
       navigator.serviceWorker
         .register('/service-worker.js')
-        .then(function () { // 非同步使用Call back
-          console.log('Service Worker 註冊成功')
+        .then(function (swReg) { // 非同步使用Call back
+          resolve('Service Worker 註冊成功')
+          swRegistration = swReg; // Service Worker proxy 啟動成功後返回的...??
+          console.log(swRegistration)
+
         }).catch(function (error) {
-        console.log('Service worker 註冊失敗:', error)
+        reject('Service worker 註冊失敗')
       })
     } else {
-      console.log('瀏覽器不支援...')
+      reject('瀏覽器不支援...')
     }
+  }
+
+  /* promise 包裝 start sw Proxy */
+  const promise_startProxy = new Promise((resolve, reject) => {
+    startProxy(resolve, reject)
+  })
+
+  /* base64 網址安全編碼 轉換爲 UInt8Array*/
+  function urlB64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding)
+      .replace(/\-/g, '+')
+      .replace(/_/g, '/');
+
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  }
+
+  function updateBtn() {
+    if (isSubscribed) {
+      // 有訂閱時 :
+      pushButton.textContent = '太吵了，不再訂閱吵鬧狗狗';
+    } else {
+      pushButton.textContent = '開始訂閱吵鬧狗狗(開始列彈跳視窗提醒)';
+    }
+    // pushButton.disabled = false; // 暫時關掉
+  }
+
+  /* 開始訂閱吵鬧狗狗 (開始列跳出通知) 操作 */
+  function subscribeUser() {
+    const applicationServerKey = urlB64ToUint8Array(applicationServerPublicKey); // 公鑰
+
+    // subscribe() 方法: 會顯示彈出框通確認是否要訂閱，由於是否訂閱的狀態是放在 SW Proxy 的，所以方法放在 sw 上面
+    // 註: 當網頁或APP是關掉的時候是不會有訊息提示的
+    swRegistration.pushManager.subscribe({ // 給 sw 註冊: 要訂閱了!
+      userVisibleOnly: true, // 推送過來的 只有該用戶可見
+      applicationServerKey: applicationServerKey // Server直接来向客户端应用发送消息的公鑰
+    })
+    .then(function(subscription) {
+      console.log('User 開始訂閱吵鬧狗狗了:', subscription.endpoint);
+      isSubscribed = true
+      updateBtn(isSubscribed);
+    })
+    .catch(function(err) {
+      console.log('訂閱吵鬧狗狗失敗: ', err);
+      isSubscribed = false
+      updateBtn(isSubscribed);
+    });
   }
 
   /* 初始化 */
   function init () {
-    startProxy()
+    promise_startProxy
+      .then(result => {
+        console.log(result)
+        /*startProxy 成功後，檢查 訂閱 SW Proxy 事件*/
+        swRegistration.pushManager.getSubscription()
+        .then(function(subscription) {
+          // 每當重啟的時候
+          isSubscribed = !(subscription === null); // 返回布林
+
+          if (isSubscribed) {
+            console.log('User 之前有訂閱吵鬧狗狗提醒');
+          } else {
+            console.log('User 之前沒訂閱吵鬧狗狗提醒');
+          }
+          updateBtn();
+        });
+      })
+      .catch(error => {
+        console.log(error)
+      })
 
     /* 綁定送出按鈕事件&操作 */
     send.onclick = (e) => {
@@ -207,6 +298,16 @@ window.onload = function () {
       wantToSay.value = ''
     }
 
+    /* 綁定註冊吵鬧小狗按鈕 */
+    pushButton.onclick = () => {
+      pushButton.disabled = true;
+      if (isSubscribed) {
+        // TODO: 解除訂閱~~~~
+      } else {
+        subscribeUser();
+      }
+    }
+
     /* init時 使用 Promise 等候 DB啟動OK  & Socket連線OK */
     Promise.all([promise_startSocket, promise_startDB])
       .then((result) => {
@@ -220,6 +321,7 @@ window.onload = function () {
 
     /* 取得小狗圖片 */
     getDogimg()
+
   }
 
   init()
