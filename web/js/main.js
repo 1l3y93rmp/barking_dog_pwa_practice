@@ -7,7 +7,7 @@ window.onload = function () {
   const pushButton = document.getElementById('pushButton')
 
   /* 公鑰 用於當 伺服器推送了資訊打包用*/
-  const applicationServerPublicKey = 'BOacHYvnPWxVLwEyOzQCh1Vjl6KjjJkx3UGZkiP9DKqHzy_rxKVREqmfTPpvnkbBPPFy6DWzyvvbkQxWKecu_2k';
+  const applicationServerPublicKey = 'BM0azGBb97Y7N4YKySdyupgI0OaJTqXzBxlMPStPMYgWJzyrJsWihjVEf2GJCmnMvGtWl8fMQzB8keDwpjsGuQU';
 
   /* 通用方法與 OBJ */
   let socket, swRegistration, addDB, readAllDB, deleteDBtext, isSubscribed;
