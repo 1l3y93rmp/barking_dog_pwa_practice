@@ -56,9 +56,9 @@ window.onload = function () {
         const title = '狗狗回應了你一些訊息:'
         const options = {
           body: e.data,
-          icon: 'images/icons-192.png',
-          badge: 'images/icons-192.png',
-          image: 'images/dog.jpg'
+          icon: './images/icons-192.png',
+          badge: './images/icons-192.png',
+          image: './images/dog.jpg'
         }
         // showNotification() 可以跳出提示視窗喔
         swRegistration.showNotification(title, options)
@@ -190,7 +190,7 @@ window.onload = function () {
   function startProxy (resolve, reject) {
     if ('serviceWorker' in navigator && 'PushManager' in window) { // 是否有支援 serviceWorker proxy 和 PushManager ?
       navigator.serviceWorker
-        .register('/service-worker.js')
+        .register('./service-worker.js')
         .then(function (swReg) { // 非同步
           resolve('Service Worker 註冊成功')
           swRegistration = swReg; // Service Worker proxy 啟動成功後返回的實體
