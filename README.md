@@ -7,4 +7,4 @@ PWA practice -- talk to robot dog
 
 local host 3001 : http
 
-local host 3002 : https
+local host 443 : https
