@@ -1,4 +1,7 @@
 // JS 的 Proxy，這裡的Console 可以傳到外面
+// Proxy 即便網頁關閉了，也能執行，因此可以協助接收一些資料
+// 註: 但是瀏覽器要開著
+
 console.log(self) // 指的是 worker global scope
 const CACHE_VERSION = 1; // 以後每次 動態快取 static & dynamic 快取住的 檔案有更新，記得來這邊改版本號
 
@@ -72,14 +75,16 @@ self.addEventListener('push', function (event) {
   // 由於 webSocket 的連線沒有被 service-worker
   console.log('[SW] 伺服器推送了一個資訊過來!')
   console.log(`[SW] 伺服器推送來內容是: "${event.data.text()}"`)
-  // const title = '狗狗來吵鬧'
-  // const options = {
-  //   body: '甕甕甕! 你在幹嘛?',
-  //   icon: 'images/icons-192.png',
-  //   badge: 'images/icons-192.png'
-  // }
-  // // 向 Clint 端發送 showNotification，
-  // event.waitUntil(self.registration.showNotification(title, options))
+  const title = '狗狗從伺服器發送了一個訊息過來'
+  console.log(event)
+  const options = {
+    body: event.data.text(),
+    icon: 'images/icons-192.png',
+    badge: 'images/icons-192.png',
+    image: 'images/dog.jpg'
+  }
+  // 向 Clint 端發送 showNotification，
+  event.waitUntil(self.registration.showNotification(title, options))
 })
 
 self.addEventListener('notificationclick', event => {

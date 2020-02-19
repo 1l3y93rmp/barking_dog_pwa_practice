@@ -6,8 +6,8 @@ window.onload = function () {
   const wantToSay = document.getElementById('wantToSay')
   const pushButton = document.getElementById('pushButton')
 
-  /* 公鑰 用於當 伺服器推送了資訊*/
-  const applicationServerPublicKey = 'BPkVtb8v7cbHBzzs0ISnxRwm1FyDShujOmycPffzlABoOFjY2-2MeLxmifI_tcNFU_-_L9RJEZimInibS2o7YTg';
+  /* 公鑰 用於當 伺服器推送了資訊打包用*/
+  const applicationServerPublicKey = 'BOacHYvnPWxVLwEyOzQCh1Vjl6KjjJkx3UGZkiP9DKqHzy_rxKVREqmfTPpvnkbBPPFy6DWzyvvbkQxWKecu_2k';
 
   /* 通用方法與 OBJ */
   let socket, swRegistration, addDB, readAllDB, deleteDBtext, isSubscribed;
@@ -26,7 +26,7 @@ window.onload = function () {
     // 宣告創建時自動會連結 
 
     if ( location.protocol === 'https:' ){
-      socket = new WebSocket('wss://10.101.205.226:3004');  // 註: 由於內網為浮動IP , ssl 加密訪問於 3004 Port
+      socket = new WebSocket('wss://pwa.trplus.com.tw:3004');  // 註: ssl 加密訪問於 3004 Port
     } else {
       socket = new WebSocket('ws://localhost:3003'); 
     }
@@ -50,12 +50,15 @@ window.onload = function () {
       // console.log('WebSocket 有訊息傳來了', e)
       addElement(`狗狗說: ${e.data}`)
 
+      // 在這支JS 內雖然可以執行 showNotification ，但是當這隻JS被關閉時是無法執行的。
+
       if (isSubscribed) {
         const title = '狗狗回應了你一些訊息:'
         const options = {
           body: e.data,
           icon: 'images/icons-192.png',
-          badge: 'images/icons-192.png'
+          badge: 'images/icons-192.png',
+          image: 'images/dog.jpg'
         }
         // showNotification() 可以跳出提示視窗喔
         swRegistration.showNotification(title, options)
@@ -188,10 +191,11 @@ window.onload = function () {
     if ('serviceWorker' in navigator && 'PushManager' in window) { // 是否有支援 serviceWorker proxy 和 PushManager ?
       navigator.serviceWorker
         .register('/service-worker.js')
-        .then(function (swReg) { // 非同步使用Call back
+        .then(function (swReg) { // 非同步
           resolve('Service Worker 註冊成功')
-          swRegistration = swReg; // Service Worker proxy 啟動成功後返回的...??
+          swRegistration = swReg; // Service Worker proxy 啟動成功後返回的實體
           console.log(swRegistration)
+          subscribeUser(); // 這樣 Service Worker proxy 也可被訂閱
 
         }).catch(function (error) {
         reject('Service worker 註冊失敗')
@@ -239,11 +243,16 @@ window.onload = function () {
     // subscribe() 方法: 會顯示彈出框通確認是否要訂閱，由於是否訂閱的狀態是放在 SW Proxy 的，所以方法放在 sw 上面
     // 註: 當網頁或APP是關掉的時候是不會有訊息提示的
     swRegistration.pushManager.subscribe({ // 給 sw 註冊: 要訂閱了!
-      userVisibleOnly: true, // 推送過來的 只有該用戶可見
-      applicationServerKey: applicationServerKey // Server直接来向客户端应用发送消息的公鑰
+      userVisibleOnly: true, // 表示授權 允許Server 傳資料過來時，可以顯現小彈窗
+      applicationServerKey: applicationServerKey // Server直接来向客户端应用发送消息用的打包公鑰
     })
     .then(function(subscription) {
       console.log('User 開始訂閱吵鬧狗狗了:', subscription.endpoint);
+      console.log(JSON.stringify(subscription))
+      // 可以看到endpoint 終點是 google FCM 服務
+      // subscription 如同這個APP 的身分證，讓 FCM 服務 可以找到我們的 APP
+      // 操做法: 將 JSON.stringify(subscription) 產出的字串貼到 FCM https://web-push-codelab.glitch.me/ 服務即可發送測試
+
       isSubscribed = true
       updateBtn(isSubscribed);
     })
@@ -251,6 +260,27 @@ window.onload = function () {
       console.log('訂閱吵鬧狗狗失敗: ', err);
       isSubscribed = false
       updateBtn(isSubscribed);
+    });
+  }
+
+
+
+  /* 停止訂閱~ */
+  function unsubscribeUser() {
+    swRegistration.pushManager.getSubscription()
+    .then(function(subscription) {
+      if (subscription) {
+        return subscription.unsubscribe();
+      }
+    })
+    .catch(function(error) {
+      console.log('停止訂閱出錯了', error);
+    })
+    .then(function() {
+      console.log('使用者停止訂閱了~');
+      isSubscribed = false;
+
+      updateBtn();
     });
   }
 
@@ -300,10 +330,10 @@ window.onload = function () {
 
     /* 綁定註冊吵鬧小狗按鈕 */
     pushButton.onclick = () => {
-      pushButton.disabled = true;
       if (isSubscribed) {
-        // TODO: 解除訂閱~~~~
+        unsubscribeUser();
       } else {
+        // 開始訂閱
         subscribeUser();
       }
     }

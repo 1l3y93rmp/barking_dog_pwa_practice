@@ -35,9 +35,9 @@ app.use(
 );
 
 const options = {
-  key: fs.readFileSync('./ssl/localhost+1-key.pem', 'utf8'),
-  cert: fs.readFileSync('./ssl/localhost+1.pem', 'utf8')
+  key: fs.readFileSync('./ssl/server.key', 'utf8'),
+  cert: fs.readFileSync('./ssl/trplus.pem', 'utf8')
 };
 
 http.createServer(app.callback()).listen(3001); // 一般訪問於 3001 port
-https.createServer(options, app.callback()).listen(3002); // SSL 加密訪問於 3002 port
+https.createServer(options, app.callback()).listen(443); // SSL 加密訪問於 3002 port

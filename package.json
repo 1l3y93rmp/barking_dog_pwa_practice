@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start3001": "node startServer.js"
+    "start3001": "node startServer.js",
+    "push": "ts-node startPushServer.ts"
   },
   "author": "",
   "license": "ISC",
@@ -16,6 +17,7 @@
     "koa-send": "^5.0.0",
     "koa-sslify": "^4.0.3",
     "koa-static": "^5.0.0",
-    "koa-websocket": "^6.0.0"
+    "koa-websocket": "^6.0.0",
+    "web-push": "^3.4.3"
   }
 }
