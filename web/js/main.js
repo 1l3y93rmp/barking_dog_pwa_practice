@@ -1,5 +1,4 @@
 window.onload = function () {
-
   /* 宣告 DOM*/
   const conten = document.getElementById('conten')
   const send = document.getElementById('send')
@@ -91,7 +90,7 @@ window.onload = function () {
 
       // 在這裡新建倉庫 "Dialogue" 內放置對話記錄表單
       // 倉庫 > 表格 > 目次
-      let objectStore = event.target.result.createObjectStore('dialogue', { autoIncrement: true })
+      let objectStore = e.target.result.createObjectStore('dialogue', { autoIncrement: true })
       // 建立表格，第二個參數決定主Key，可自動生成
       objectStore.createIndex('text', 'text', { unique: false }); // 建立表格下面的目次
     // 參數: 目次名稱 / keyPath / 目次細節參數(這邊設定了不重複)
@@ -189,8 +188,7 @@ window.onload = function () {
   /* 執行 serviceWorker proxy 代理 和 PushManager */
   function startProxy (resolve, reject) {
     if ('serviceWorker' in navigator && 'PushManager' in window) { // 是否有支援 serviceWorker proxy 和 PushManager ?
-      navigator.serviceWorker
-        .register('./service-worker.js')
+      navigator.serviceWorker.register('./service-worker.js')
         .then(function (swReg) { // 非同步
           resolve('Service Worker 註冊成功')
           swRegistration = swReg; // Service Worker proxy 啟動成功後返回的實體
@@ -288,7 +286,7 @@ window.onload = function () {
   function init () {
     promise_startProxy
       .then(result => {
-        console.log(result)
+        // console.log(result)
         /*startProxy 成功後，檢查 訂閱 SW Proxy 事件*/
         swRegistration.pushManager.getSubscription()
         .then(function(subscription) {
