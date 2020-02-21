@@ -4,19 +4,20 @@ window.onload = function () {
   const send = document.getElementById('send')
   const wantToSay = document.getElementById('wantToSay')
   const pushButton = document.getElementById('pushButton')
+  const installButton = document.getElementById('installButton')
 
   /* 公鑰 用於當 伺服器推送了資訊打包用*/
-  const applicationServerPublicKey = 'BOacHYvnPWxVLwEyOzQCh1Vjl6KjjJkx3UGZkiP9DKqHzy_rxKVREqmfTPpvnkbBPPFy6DWzyvvbkQxWKecu_2k';
+  const applicationServerPublicKey = 'BOacHYvnPWxVLwEyOzQCh1Vjl6KjjJkx3UGZkiP9DKqHzy_rxKVREqmfTPpvnkbBPPFy6DWzyvvbkQxWKecu_2k'
 
   /* 通用方法與 OBJ */
-  let socket, swRegistration, addDB, readAllDB, deleteDBtext, isSubscribed;
+  let socket, swRegistration, addDB, readAllDB, deleteDBtext, isSubscribed
 
   /* 新增 DOM 文字方法 */
   function addElement (text) {
     let node = document.createTextNode(text) // 要準被塞入的文字
     let p = document.createElement('p')
     p.appendChild(node)
-    conten.insertBefore(p,conten.childNodes[0])
+    conten.insertBefore(p, conten.childNodes[0])
   }
 
   /* 以下起動一個 WebSocket */
@@ -24,12 +25,11 @@ window.onload = function () {
     // 註: startSocket 此涵式 必定會被 Promise 包覆調用，因此可使用 resolve, reject
     // 宣告創建時自動會連結 
 
-    if ( location.protocol === 'https:' ){
-      socket = new WebSocket('wss://pwa.trplus.com.tw:3004');  // 註: ssl 加密訪問於 3004 Port
+    if (location.protocol === 'https:') {
+      socket = new WebSocket('wss://pwa.trplus.com.tw:3004'); // 註: ssl 加密訪問於 3004 Port
     } else {
-      socket = new WebSocket('ws://localhost:3003'); 
+      socket = new WebSocket('ws://localhost:3003')
     }
-    
 
     socket.onopen = e => {
       !isReOpen && resolve('WebSocket 打開啦!')
@@ -56,13 +56,14 @@ window.onload = function () {
         const options = {
           body: e.data,
           icon: './images/icons-192.png',
-          badge: './images/icons-192.png',
-          image: './images/dog.jpg'
+          badge: './images/favicon.png',
+          image: './images/dog.jpg',
+          onclick: () => {
+            window.open('https://www.trplus.com.tw/')}
         }
         // showNotification() 可以跳出提示視窗喔
         swRegistration.showNotification(title, options)
       }
-
     }
   }
 
@@ -209,33 +210,33 @@ window.onload = function () {
   })
 
   /* base64 網址安全編碼 轉換爲 UInt8Array*/
-  function urlB64ToUint8Array(base64String) {
-    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  function urlB64ToUint8Array (base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4)
     const base64 = (base64String + padding)
       .replace(/\-/g, '+')
-      .replace(/_/g, '/');
+      .replace(/_/g, '/')
 
-    const rawData = window.atob(base64);
-    const outputArray = new Uint8Array(rawData.length);
+    const rawData = window.atob(base64)
+    const outputArray = new Uint8Array(rawData.length)
 
     for (let i = 0; i < rawData.length; ++i) {
-      outputArray[i] = rawData.charCodeAt(i);
+      outputArray[i] = rawData.charCodeAt(i)
     }
-    return outputArray;
+    return outputArray
   }
 
-  function updateBtn() {
+  function updateBtn () {
     if (isSubscribed) {
       // 有訂閱時 :
-      pushButton.textContent = '太吵了，不再訂閱吵鬧狗狗';
+      pushButton.textContent = '太吵了，不再訂閱吵鬧狗狗'
     } else {
-      pushButton.textContent = '開始訂閱吵鬧狗狗(開始列彈跳視窗提醒)';
+      pushButton.textContent = '開始訂閱吵鬧狗狗(開始列彈跳視窗提醒)'
     }
-    // pushButton.disabled = false; // 暫時關掉
+  // pushButton.disabled = false; // 暫時關掉
   }
 
   /* 開始訂閱吵鬧狗狗 (開始列跳出通知) 操作 */
-  function subscribeUser() {
+  function subscribeUser () {
     const applicationServerKey = urlB64ToUint8Array(applicationServerPublicKey); // 公鑰
 
     // subscribe() 方法: 會顯示彈出框通確認是否要訂閱，由於是否訂閱的狀態是放在 SW Proxy 的，所以方法放在 sw 上面
@@ -244,42 +245,73 @@ window.onload = function () {
       userVisibleOnly: true, // 表示授權 允許Server 傳資料過來時，可以顯現小彈窗
       applicationServerKey: applicationServerKey // Server直接来向客户端应用发送消息用的打包公鑰
     })
-    .then(function(subscription) {
-      console.log('User 開始訂閱吵鬧狗狗了:', subscription.endpoint);
-      console.log(JSON.stringify(subscription))
-      // 可以看到endpoint 終點是 google FCM 服務
-      // subscription 如同這個APP 的身分證，讓 FCM 服務 可以找到我們的 APP
-      // 操做法: 將 JSON.stringify(subscription) 產出的字串貼到 FCM https://web-push-codelab.glitch.me/ 服務即可發送測試
+      .then(function (subscription) {
+        console.log('User 開始訂閱吵鬧狗狗了:', subscription.endpoint)
+        console.log(JSON.stringify(subscription))
+        // 可以看到endpoint 終點是 google FCM 服務
+        // subscription 如同這個APP 的身分證，讓 FCM 服務 可以找到我們的 APP
+        // 操做法: 將 JSON.stringify(subscription) 產出的字串貼到 FCM https://web-push-codelab.glitch.me/ 服務即可發送測試
 
-      isSubscribed = true
-      updateBtn(isSubscribed);
-    })
-    .catch(function(err) {
-      console.log('訂閱吵鬧狗狗失敗: ', err);
-      isSubscribed = false
-      updateBtn(isSubscribed);
-    });
+        isSubscribed = true
+        updateBtn(isSubscribed)
+      })
+      .catch(function (err) {
+        console.log('訂閱吵鬧狗狗失敗: ', err)
+        isSubscribed = false
+        updateBtn(isSubscribed)
+      })
   }
 
-
-
   /* 停止訂閱~ */
-  function unsubscribeUser() {
+  function unsubscribeUser () {
     swRegistration.pushManager.getSubscription()
-    .then(function(subscription) {
-      if (subscription) {
-        return subscription.unsubscribe();
+      .then(function (subscription) {
+        if (subscription) {
+          return subscription.unsubscribe()
+        }
+      })
+      .catch(function (error) {
+        console.log('停止訂閱出錯了', error)
+      })
+      .then(function () {
+        console.log('使用者停止訂閱了~')
+        isSubscribed = false
+
+        updateBtn()
+      })
+  }
+
+  /* 檢查是否已經安裝，改變按鈕 */
+  function chackIntallState () {
+    let deferredPrompt
+    window.addEventListener('beforeinstallprompt', e => {
+      // beforeinstallprompt 只要沒安裝都會觸發`, 在此確認狀態
+      // 這裡當做檢查處，當執行了 deferredPrompt.prompt() 如果仍未安裝，這裡也會執行
+      e.preventDefault()
+      deferredPrompt = e
+      installButton.textContent = '點我在桌面安裝狗狗App'
+    })
+
+    window.addEventListener('appinstalled', e => {
+      // 剛安裝完，這裡會觸發
+      // 已經安裝了 重整這裡不會觸發.............
+      installButton.textContent = '謝謝，您已安裝過狗狗APP'
+    })
+
+    installButton.addEventListener('click', (e) => {
+      if (deferredPrompt) { // 當 deferredPrompt 有值才可以按~
+        deferredPrompt.prompt()
+        deferredPrompt.userChoice
+          .then(choiceResult => {
+            if (choiceResult.outcome === 'accepted') {
+              installButton.textContent = '謝謝，您已安裝過狗狗APP'
+            } else {
+              console.log('使用者未確認安裝')
+            }
+            deferredPrompt = null // 要加這個，不然 prompt() 方法只能用一次
+          })
       }
     })
-    .catch(function(error) {
-      console.log('停止訂閱出錯了', error);
-    })
-    .then(function() {
-      console.log('使用者停止訂閱了~');
-      isSubscribed = false;
-
-      updateBtn();
-    });
   }
 
   /* 初始化 */
@@ -289,17 +321,17 @@ window.onload = function () {
         // console.log(result)
         /*startProxy 成功後，檢查 訂閱 SW Proxy 事件*/
         swRegistration.pushManager.getSubscription()
-        .then(function(subscription) {
-          // 每當重啟的時候
-          isSubscribed = !(subscription === null); // 返回布林
+          .then(function (subscription) {
+            // 每當重啟的時候
+            isSubscribed = !(subscription === null); // 返回布林
 
-          if (isSubscribed) {
-            console.log('User 之前有訂閱吵鬧狗狗提醒');
-          } else {
-            console.log('User 之前沒訂閱吵鬧狗狗提醒');
-          }
-          updateBtn();
-        });
+            if (isSubscribed) {
+              console.log('User 之前有訂閱吵鬧狗狗提醒')
+            } else {
+              console.log('User 之前沒訂閱吵鬧狗狗提醒')
+            }
+            updateBtn()
+          })
       })
       .catch(error => {
         console.log(error)
@@ -329,10 +361,10 @@ window.onload = function () {
     /* 綁定註冊吵鬧小狗按鈕 */
     pushButton.onclick = () => {
       if (isSubscribed) {
-        unsubscribeUser();
+        unsubscribeUser()
       } else {
         // 開始訂閱
-        subscribeUser();
+        subscribeUser()
       }
     }
 
@@ -350,6 +382,8 @@ window.onload = function () {
     /* 取得小狗圖片 */
     getDogimg()
 
+    /* 確認安裝情況 */
+    chackIntallState()
   }
 
   init()
