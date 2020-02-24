@@ -11,7 +11,7 @@
 // https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API
 
 console.log(self) // 指的是 worker global scope
-const CACHE_VERSION = 25; // 以後每次 動態快取 static & dynamic 快取住的 檔案有更新，記得來這邊改版本號，不然會卡舊的檔案
+const CACHE_VERSION = 31; // 以後每次 動態快取 static & dynamic 快取住的 檔案有更新，記得來這邊改版本號，不然會卡舊的檔案
 // 同時，也會造成重新安裝 SW
 
 // 下面是很多的事件偵聽
@@ -78,7 +78,6 @@ self.addEventListener('fetch', function (event) {
       .then(function (response) { // 這個 response 指的是快取撈出來的 response，撈不到會拿到 nul
         if (response) {
           console.log('我有暫存' + event.request.url)
-          // 有時候沒有了快取又掉到這邊來 ??????
           return response; // 任何表 有撈到到就返回 快取撈出來的 response
         }else {
           if (event.request.url.indexOf('.js') > 0) {

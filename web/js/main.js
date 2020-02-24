@@ -10,7 +10,65 @@ window.onload = function () {
   const applicationServerPublicKey = 'BOacHYvnPWxVLwEyOzQCh1Vjl6KjjJkx3UGZkiP9DKqHzy_rxKVREqmfTPpvnkbBPPFy6DWzyvvbkQxWKecu_2k'
 
   /* 通用方法與 OBJ */
-  let socket, swRegistration, addDB, readAllDB, deleteDBtext, isSubscribed
+  let socket, swRegistration, addDB, readAllDB, deleteDBtext, isSubscribed, myBrowseris, isMob
+
+  /* 測試瀏覽器 */
+  function checkBrowser () {
+    // Opera 8.0+
+    let isOpera = (!!window.opr && !!opr.addons) || !!window.opera || navigator.userAgent.indexOf(' OPR/') >= 0
+
+    // Firefox 1.0+
+    let isFirefox = typeof InstallTrigger !== 'undefined'
+
+    // Safari 3.0+ "[object HTMLElementConstructor]" 
+    let isSafari = /constructor/i.test(window.HTMLElement) || (function (p) { return p.toString() === '[object SafariRemoteNotification]'; })(!window['safari'] || (typeof safari !== 'undefined' && safari.pushNotification))
+
+    // Internet Explorer 6-11
+    let isIE = /*@cc_on!@*/false || !!document.documentMode
+
+    // Edge 20+
+    let isEdge = !isIE && !!window.StyleMedia
+
+    // Chrome 1 - 71
+    let isChrome = !!window.chrome && (!!window.chrome.webstore || !!window.chrome.runtime)
+
+    // 三星瀏覽器
+    let isSamsung = navigator.userAgent.indexOf('Samsung') >= 0
+
+
+    if (isOpera) {
+      return 'isOpera'
+    } else if (isFirefox) {
+      return 'isFirefox'
+    } else if (isSafari) {
+      return 'isSafari'
+    } else if (isIE) {
+      return 'isIE'
+    } else if (isEdge) {
+      return 'isEdge'
+    } else if (isChrome) {
+      return 'isChrome'
+    } else if (isSamsung) {
+      return 'isSamsung'
+    }
+  }
+
+  /* 測試裝置 */
+  function checkMob () {
+    const toMatch = [
+      /Android/i,
+      /webOS/i,
+      /iPhone/i,
+      /iPad/i,
+      /iPod/i,
+      /BlackBerry/i,
+      /Windows Phone/i
+    ]
+
+    return toMatch.some((toMatchItem) => {
+      return navigator.userAgent.match(toMatchItem)
+    })
+  }
 
   /* 新增 DOM 文字方法 */
   function addElement (text) {
@@ -228,11 +286,10 @@ window.onload = function () {
   function updateBtn () {
     if (isSubscribed) {
       // 有訂閱時 :
-      pushButton.textContent = '太吵了，不再訂閱吵鬧狗狗'
+      pushButton.textContent = '太吵了，不再訂閱主動狗狗通知消息'
     } else {
-      pushButton.textContent = '開始訂閱吵鬧狗狗(開始列彈跳視窗提醒)'
+      pushButton.textContent = '開始訂閱主動狗狗通知消息(開始列彈跳視窗提醒)'
     }
-  // pushButton.disabled = false; // 暫時關掉
   }
 
   /* 開始訂閱吵鬧狗狗 (開始列跳出通知) 操作 */
@@ -274,6 +331,7 @@ window.onload = function () {
         console.log('停止訂閱出錯了', error)
       })
       .then(function () {
+        // 註: unsubscribe 並非 "封鎖" 通知，而是停止，在瀏覽器上看到的仍然會是"允許"，只是JS無法在產生通知給使用者
         console.log('使用者停止訂閱了~')
         isSubscribed = false
 
@@ -285,6 +343,7 @@ window.onload = function () {
   function chackIntallState () {
     let deferredPrompt
     window.addEventListener('beforeinstallprompt', e => {
+      console.log('beforeinstallprompt，安裝之前觸發')
       // beforeinstallprompt 只要沒安裝都會觸發`, 在此確認狀態
       // 這裡當做檢查處，當執行了 deferredPrompt.prompt() 如果仍未安裝，這裡也會執行
       e.preventDefault()
@@ -294,7 +353,8 @@ window.onload = function () {
 
     window.addEventListener('appinstalled', e => {
       // 剛安裝完，這裡會觸發
-      // 已經安裝了 重整這裡不會觸發.............
+      // 已經安裝了 重整這裡不會觸發.............因此重整的情況靠下方的 setTimeout
+      console.log('appinstalled，安裝之後觸發')
       installButton.textContent = '謝謝，您已安裝過狗狗APP'
     })
 
@@ -310,12 +370,39 @@ window.onload = function () {
             }
             deferredPrompt = null // 要加這個，不然 prompt() 方法只能用一次
           })
+      } else {
+        console.log('已安裝 或不支援點擊安裝 ^_^b')
       }
     })
+
+    // 等候500毫秒 若 beforeinstallprompt 沒有被處發 deferredPrompt 必定為空
+    // 表示 1.已安裝過 2.不支援這個事件(目前除了 Chropme 瀏覽器 都不支援)
+    // https://caniuse.com/#search=BeforeInstall
+
+    setTimeout(() => {
+      if ( deferredPrompt === undefined ) {
+        if (myBrowseris === 'isChrome') {
+            installButton.textContent = '謝謝，您已安裝過狗狗APP'
+        } else if ( (myBrowseris === 'isFirefox' && isMob) || (myBrowseris === 'isSafari' && isMob) || myBrowseris === 'isSamsung' ){
+          installButton.textContent = '很抱歉，您的瀏覽器目前還不支援點擊後自動安裝APP，可手動在瀏覽器畫面右上角執行手動安裝加入主畫面'
+        } else {
+          installButton.textContent = '很抱歉，您的瀏覽器或裝置目前不支援安裝APP'
+        }
+      }
+    }, 500)
+
   }
 
   /* 初始化 */
   function init () {
+
+    // 得知當前瀏覽器為:
+    myBrowseris = checkBrowser()
+
+    // 得知當前的裝置為:
+    isMob = checkMob()
+
+    /* 啟動 SW Proxy */
     promise_startProxy
       .then(result => {
         // console.log(result)
@@ -336,6 +423,24 @@ window.onload = function () {
       .catch(error => {
         console.log(error)
       })
+
+    /* 確認 APP 安裝情況 */
+    chackIntallState()
+
+    /* 綁定註冊推播按鈕 */
+
+    if (myBrowseris === 'isSafari' || myBrowseris === 'isIE') {
+      pushButton.textContent = '很抱歉，您的瀏覽器不支援訂閱主動通知消息!'
+    } else {
+      pushButton.onclick = () => {
+        if (isSubscribed) {
+          unsubscribeUser()
+        } else {
+          // 開始訂閱
+          subscribeUser()
+        }
+      }
+    }
 
     /* 綁定送出按鈕事件&操作 */
     send.onclick = (e) => {
@@ -358,16 +463,6 @@ window.onload = function () {
       wantToSay.value = ''
     }
 
-    /* 綁定註冊吵鬧小狗按鈕 */
-    pushButton.onclick = () => {
-      if (isSubscribed) {
-        unsubscribeUser()
-      } else {
-        // 開始訂閱
-        subscribeUser()
-      }
-    }
-
     /* init時 使用 Promise 等候 DB啟動OK  & Socket連線OK */
     Promise.all([promise_startSocket, promise_startDB])
       .then((result) => {
@@ -381,9 +476,6 @@ window.onload = function () {
 
     /* 取得小狗圖片 */
     getDogimg()
-
-    /* 確認安裝情況 */
-    chackIntallState()
   }
 
   init()
