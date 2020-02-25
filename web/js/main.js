@@ -384,8 +384,10 @@ window.onload = function () {
         if (myBrowseris === 'isChrome') {
             installButton.textContent = '謝謝，您已安裝過狗狗APP'
         } else if ( (myBrowseris === 'isFirefox' && isMob) || (myBrowseris === 'isSafari' && isMob) || myBrowseris === 'isSamsung' ){
-          installButton.textContent = '很抱歉，您的瀏覽器目前還不支援點擊後自動安裝APP，可手動在瀏覽器畫面右上角執行手動安裝加入主畫面'
+          // 不支援 beforeinstallprompt / appinstalled 事件，但可安裝之情況
+          installButton.textContent = '很抱歉，您的瀏覽器目前還不支援點擊後自動安裝APP，若您尚未安裝，可手動在瀏覽器畫面右上角執行手動安裝加入主畫面'
         } else {
+          // 無法安裝的情況
           installButton.textContent = '很抱歉，您的瀏覽器或裝置目前不支援安裝APP'
         }
       }
