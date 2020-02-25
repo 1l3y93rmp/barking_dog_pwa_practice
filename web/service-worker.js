@@ -11,7 +11,7 @@
 // https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API
 
 console.log(self) // 指的是 worker global scope
-const CACHE_VERSION = 31; // 以後每次 動態快取 static & dynamic 快取住的 檔案有更新，記得來這邊改版本號，不然會卡舊的檔案
+const CACHE_VERSION = 52; // 以後每次 動態快取 static & dynamic 快取住的 檔案有更新，記得來這邊改版本號，不然會卡舊的檔案
 // 同時，也會造成重新安裝 SW
 
 // 下面是很多的事件偵聽

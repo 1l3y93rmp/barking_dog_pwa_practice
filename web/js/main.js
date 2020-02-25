@@ -18,7 +18,7 @@ window.onload = function () {
     let isOpera = (!!window.opr && !!opr.addons) || !!window.opera || navigator.userAgent.indexOf(' OPR/') >= 0
 
     // Firefox 1.0+
-    let isFirefox = typeof InstallTrigger !== 'undefined'
+    let isFirefox = typeof InstallTrigger !== 'undefined' || /FxiOS/.test(navigator.userAgent)
 
     // Safari 3.0+ "[object HTMLElementConstructor]" 
     let isSafari = /constructor/i.test(window.HTMLElement) || (function (p) { return p.toString() === '[object SafariRemoteNotification]'; })(!window['safari'] || (typeof safari !== 'undefined' && safari.pushNotification))
@@ -30,11 +30,10 @@ window.onload = function () {
     let isEdge = !isIE && !!window.StyleMedia
 
     // Chrome 1 - 71
-    let isChrome = !!window.chrome && (!!window.chrome.webstore || !!window.chrome.runtime)
+    let isChrome = !!window.chrome || /CriOS/.test(navigator.userAgent)
 
     // 三星瀏覽器
     let isSamsung = navigator.userAgent.indexOf('Samsung') >= 0
-
 
     if (isOpera) {
       return 'isOpera'
@@ -58,16 +57,22 @@ window.onload = function () {
     const toMatch = [
       /Android/i,
       /webOS/i,
+      /iOS/i,
+      /FxiOS/i,
+      /CriOS/i,
       /iPhone/i,
       /iPad/i,
       /iPod/i,
       /BlackBerry/i,
       /Windows Phone/i
     ]
+    let isIOS = /iPad|iPhone|iPod/.test(navigator.platform) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
 
-    return toMatch.some((toMatchItem) => {
-      return navigator.userAgent.match(toMatchItem)
-    })
+    return (toMatch.some((toMatchItem) => {
+        return navigator.userAgent.match(toMatchItem)
+      })) || isIOS
+
+  // 因為 navigator.userAgent 沒辦法測出 ios 的 safari
   }
 
   /* 新增 DOM 文字方法 */
@@ -245,26 +250,44 @@ window.onload = function () {
   }
 
   /* 執行 serviceWorker proxy 代理 和 PushManager */
-  function startProxy (resolve, reject) {
-    if ('serviceWorker' in navigator && 'PushManager' in window) { // 是否有支援 serviceWorker proxy 和 PushManager ?
+  function startSW (resolve, reject) {
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+      // 是否有支援 serviceWorker proxy 和 PushManager ? (目前大多瀏覽器有支援)
       navigator.serviceWorker.register('./service-worker.js')
         .then(function (swReg) { // 非同步
           resolve('Service Worker 註冊成功')
-          swRegistration = swReg; // Service Worker proxy 啟動成功後返回的實體
-          console.log(swRegistration)
-          subscribeUser(); // 這樣 Service Worker proxy 也可被訂閱
+          swRegistration = swReg; // Service Worker 啟動成功後返回的"實體"，代表 SW 本身，可用它的方法產生 Token
 
+          // SW 開啟後，在此綁定訂閱按鈕的操作
+          subscribeUser()
+          if ('PushManager' in window) {
+            pushButton.onclick = () => {
+              if (isSubscribed) {
+                unsubscribeUser()
+              } else {
+                // 開始訂閱
+                subscribeUser()
+              }
+            }
+          } else {
+            // SW 都開不起來的瀏覽器:
+            pushButton.disabled = true
+            pushButton.textContent = '很抱歉，您的瀏覽器或裝置目前不支援訂閱通知'
+          }
         }).catch(function (error) {
         reject('Service worker 註冊失敗')
       })
     } else {
-      reject('瀏覽器不支援...')
+      // SW 都開不起來的瀏覽器:
+      pushButton.disabled = true
+      pushButton.textContent = '很抱歉，您的瀏覽器或裝置目前不支援SW，因此無法訂閱通知與離線瀏覽'
+      reject('瀏覽器不支援 serviceWorker')
     }
   }
 
   /* promise 包裝 start sw Proxy */
-  const promise_startProxy = new Promise((resolve, reject) => {
-    startProxy(resolve, reject)
+  const promise_startSW = new Promise((resolve, reject) => {
+    startSW(resolve, reject)
   })
 
   /* base64 網址安全編碼 轉換爲 UInt8Array*/
@@ -294,29 +317,33 @@ window.onload = function () {
 
   /* 開始訂閱吵鬧狗狗 (開始列跳出通知) 操作 */
   function subscribeUser () {
-    const applicationServerKey = urlB64ToUint8Array(applicationServerPublicKey); // 公鑰
+    if (typeof swRegistration.pushManager.subscribe === 'function') { // 檢查那些不能訂閱的瀏覽器
+      const applicationServerKey = urlB64ToUint8Array(applicationServerPublicKey); // 轉換成二進位的公鑰
 
-    // subscribe() 方法: 會顯示彈出框通確認是否要訂閱，由於是否訂閱的狀態是放在 SW Proxy 的，所以方法放在 sw 上面
-    // 註: 當網頁或APP是關掉的時候是不會有訊息提示的
-    swRegistration.pushManager.subscribe({ // 給 sw 註冊: 要訂閱了!
-      userVisibleOnly: true, // 表示授權 允許Server 傳資料過來時，可以顯現小彈窗
-      applicationServerKey: applicationServerKey // Server直接来向客户端应用发送消息用的打包公鑰
-    })
-      .then(function (subscription) {
-        console.log('User 開始訂閱吵鬧狗狗了:', subscription.endpoint)
-        console.log(JSON.stringify(subscription))
-        // 可以看到endpoint 終點是 google FCM 服務
-        // subscription 如同這個APP 的身分證，讓 FCM 服務 可以找到我們的 APP
-        // 操做法: 將 JSON.stringify(subscription) 產出的字串貼到 FCM https://web-push-codelab.glitch.me/ 服務即可發送測試
+      // subscribe() 方法: 瀏覽器會顯示彈出框通確認是否要訂閱，由於訂閱是使 SW 開始接收訊息，所以方法放在 SW 實體上面
+      swRegistration.pushManager.subscribe({ // 給 sw 註冊: 要訂閱了!
+        userVisibleOnly: true, // 表示授權 允許Server 傳資料過來時，可以顯現小彈窗
+        applicationServerKey: applicationServerKey // Server直接来向客户端应用发送消息用的打包公鑰
+      })
+        .then(function (subscription) {
+          console.log('User 開始訂閱吵鬧狗狗了:')
+          console.log(JSON.stringify(subscription))
+          // 可以看到endpoint 終點是 google FCM 服務
+          // subscription 如同這個APP 的身分證，讓 FCM 服務 可以找到我們的 APP
+          // 操做法: 將 JSON.stringify(subscription) 產出的字串貼到 FCM https://web-push-codelab.glitch.me/ 服務即可發送測試
 
-        isSubscribed = true
-        updateBtn(isSubscribed)
-      })
-      .catch(function (err) {
-        console.log('訂閱吵鬧狗狗失敗: ', err)
-        isSubscribed = false
-        updateBtn(isSubscribed)
-      })
+          isSubscribed = true
+          updateBtn(isSubscribed)
+        })
+        .catch(function (err) {
+          console.log('訂閱吵鬧狗狗失敗: ', err)
+          isSubscribed = false
+          updateBtn(isSubscribed)
+        })
+    } else {
+      pushButton.disabled = true
+      pushButton.textContent = '很抱歉，您的瀏覽器不支援訂閱主動通知消息!'
+    }
   }
 
   /* 停止訂閱~ */
@@ -348,6 +375,7 @@ window.onload = function () {
       // 這裡當做檢查處，當執行了 deferredPrompt.prompt() 如果仍未安裝，這裡也會執行
       e.preventDefault()
       deferredPrompt = e
+      installButton.disabled = false
       installButton.textContent = '點我在桌面安裝狗狗App'
     })
 
@@ -355,6 +383,7 @@ window.onload = function () {
       // 剛安裝完，這裡會觸發
       // 已經安裝了 重整這裡不會觸發.............因此重整的情況靠下方的 setTimeout
       console.log('appinstalled，安裝之後觸發')
+      installButton.disabled = true
       installButton.textContent = '謝謝，您已安裝過狗狗APP'
     })
 
@@ -364,6 +393,7 @@ window.onload = function () {
         deferredPrompt.userChoice
           .then(choiceResult => {
             if (choiceResult.outcome === 'accepted') {
+              installButton.disabled = true
               installButton.textContent = '謝謝，您已安裝過狗狗APP'
             } else {
               console.log('使用者未確認安裝')
@@ -380,19 +410,27 @@ window.onload = function () {
     // https://caniuse.com/#search=BeforeInstall
 
     setTimeout(() => {
-      if ( deferredPrompt === undefined ) {
-        if (myBrowseris === 'isChrome') {
+      console.log(myBrowseris)
+      if (deferredPrompt === undefined) {
+        if (navigator.platform !== 'MacIntel') {
+          if (myBrowseris === 'isChrome') {
             installButton.textContent = '謝謝，您已安裝過狗狗APP'
-        } else if ( (myBrowseris === 'isFirefox' && isMob) || (myBrowseris === 'isSafari' && isMob) || myBrowseris === 'isSamsung' ){
-          // 不支援 beforeinstallprompt / appinstalled 事件，但可安裝之情況
-          installButton.textContent = '很抱歉，您的瀏覽器目前還不支援點擊後自動安裝APP，若您尚未安裝，可手動在瀏覽器畫面右上角執行手動安裝加入主畫面'
+          } else if ((myBrowseris === 'isFirefox' && isMob) || (myBrowseris === 'isSafari' && isMob) || myBrowseris === 'isSamsung') {
+            // 不支援 beforeinstallprompt / appinstalled 事件，但可安裝之情況
+            installButton.disabled = true
+            installButton.textContent = '很抱歉，您的瀏覽器目前還不支援點擊後自動安裝APP，若您尚未安裝，可手動在瀏覽器畫面右上角執行手動安裝加入主畫面'
+          } else {
+            // 無法安裝的情況
+            installButton.disabled = true
+            installButton.textContent = '很抱歉，您的瀏覽器或裝置目前不支援安裝APP(其他瀏覽器)'
+          }
         } else {
-          // 無法安裝的情況
-          installButton.textContent = '很抱歉，您的瀏覽器或裝置目前不支援安裝APP'
+          // 無法安裝的情況 (無論何種瀏覽器，在Ipad IPhone 都不行)
+          installButton.disabled = true
+          installButton.textContent = '很抱歉，您的瀏覽器或裝置目前不支援安裝APP(MacIntel)'
         }
       }
     }, 500)
-
   }
 
   /* 初始化 */
@@ -405,10 +443,10 @@ window.onload = function () {
     isMob = checkMob()
 
     /* 啟動 SW Proxy */
-    promise_startProxy
+    promise_startSW
       .then(result => {
         // console.log(result)
-        /*startProxy 成功後，檢查 訂閱 SW Proxy 事件*/
+        /*startSW 成功後，檢查 訂閱 SW Proxy 事件*/
         swRegistration.pushManager.getSubscription()
           .then(function (subscription) {
             // 每當重啟的時候
@@ -419,7 +457,6 @@ window.onload = function () {
             } else {
               console.log('User 之前沒訂閱吵鬧狗狗提醒')
             }
-            updateBtn()
           })
       })
       .catch(error => {
@@ -428,21 +465,6 @@ window.onload = function () {
 
     /* 確認 APP 安裝情況 */
     chackIntallState()
-
-    /* 綁定註冊推播按鈕 */
-
-    if (myBrowseris === 'isSafari' || myBrowseris === 'isIE') {
-      pushButton.textContent = '很抱歉，您的瀏覽器不支援訂閱主動通知消息!'
-    } else {
-      pushButton.onclick = () => {
-        if (isSubscribed) {
-          unsubscribeUser()
-        } else {
-          // 開始訂閱
-          subscribeUser()
-        }
-      }
-    }
 
     /* 綁定送出按鈕事件&操作 */
     send.onclick = (e) => {
