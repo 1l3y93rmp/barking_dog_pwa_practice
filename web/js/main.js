@@ -5,6 +5,7 @@ window.onload = function () {
   const wantToSay = document.getElementById('wantToSay')
   const pushButton = document.getElementById('pushButton')
   const installButton = document.getElementById('installButton')
+  const closeSWButton = document.getElementById('closeSWButton')
 
   /* 公鑰 用於當 伺服器推送了資訊打包用*/
   const applicationServerPublicKey = 'BOacHYvnPWxVLwEyOzQCh1Vjl6KjjJkx3UGZkiP9DKqHzy_rxKVREqmfTPpvnkbBPPFy6DWzyvvbkQxWKecu_2k'
@@ -274,6 +275,18 @@ window.onload = function () {
             pushButton.disabled = true
             pushButton.textContent = '很抱歉，您的瀏覽器或裝置目前不支援訂閱通知'
           }
+
+          // 既然開好了也可以把他關掉
+          closeSWButton.textContent = 'Service Worker 註冊成功, 按我可以把它關掉'
+          closeSWButton.onclick = e => {
+            swRegistration.unregister()
+              .then(function(boolean) {
+                if (boolean) {
+                  closeSWButton.textContent = 'Service Worker 已經解除註冊，要等到她睡著才會自滅，重整將會再度自動開啟'
+                }
+              });
+          }
+
         }).catch(function (error) {
         reject('Service worker 註冊失敗')
       })
@@ -348,7 +361,7 @@ window.onload = function () {
 
   /* 停止訂閱~ */
   function unsubscribeUser () {
-    swRegistration.pushManager.getSubscription()
+    swRegistration.pushManager.getSubscription() // getSubscription 返回Promise，可取得當前現有的訂閱
       .then(function (subscription) {
         if (subscription) {
           return subscription.unsubscribe()
@@ -447,7 +460,7 @@ window.onload = function () {
       .then(result => {
         // console.log(result)
         /*startSW 成功後，檢查 訂閱 SW Proxy 事件*/
-        swRegistration.pushManager.getSubscription()
+        swRegistration.pushManager.getSubscription() // getSubscription 返回Promise，可取得當前現有的訂閱
           .then(function (subscription) {
             // 每當重啟的時候
             isSubscribed = !(subscription === null); // 返回布林
