@@ -90,9 +90,9 @@ window.onload = function () {
     // 宣告創建時自動會連結 
 
     if (location.protocol === 'https:') {
-      socket = new WebSocket('wss://pwa.trplus.com.tw:3004'); // 註: ssl 加密訪問於 3004 Port
+      socket = new WebSocket('wss://pwa.trplus.com.tw:3004/websocket'); // 註: ssl 加密訪問於 3004 Port
     } else {
-      socket = new WebSocket('ws://localhost:3003')
+      socket = new WebSocket('ws://localhost:3003/websocket')
     }
 
     socket.onopen = e => {
@@ -254,6 +254,20 @@ window.onload = function () {
   function startSW (resolve, reject) {
     if ('serviceWorker' in navigator && 'PushManager' in window) {
       // 是否有支援 serviceWorker proxy 和 PushManager ? (目前大多瀏覽器有支援)
+      // 註冊前，去向 Server取得 公鑰方可註冊
+      let getPublicKeyUrl
+      if (location.protocol === 'https:') {
+        getPublicKeyUrl = 'https://localhost:3004/getpublicKey'
+      } else {
+        getPublicKeyUrl = 'http://localhost:3003/getpublicKey'
+      }
+
+      fetch(getPublicKeyUrl, { //跨預問題
+        method: 'GET',
+        crossDomain: true
+      }).then(response=>{
+        console.log(response)
+      })
       navigator.serviceWorker.register('./service-worker.js')
         .then(function (swReg) { // 非同步
           resolve('Service Worker 註冊成功')
